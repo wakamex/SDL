@@ -28,6 +28,7 @@ const sdl_dep = b.dependency("sdl", .{
     //.system_include_path = null,
     //.system_framework_path = null,
     //.library_path = null,
+    //.android_ndk = null,
 });
 const sdl_lib = sdl_dep.artifact("SDL3");
 const sdl_test_lib = sdl_dep.artifact("SDL3_test");
@@ -62,6 +63,8 @@ Example projects using this SDL package:
 <tr><td><code>aarch64-linux-gnu</code><td align=center>✅<td align=center>✅<td align=center>✅
 <tr><td><code>aarch64-linux-musl</code><td align=center>✅<td align=center>✅<td align=center>✅
 <tr><td><code>x86_64-macos-none</code><td align=center>❌<td align=center>❌<td align=center>🉑
+<tr><td><code>aarch64-linux-android</code><td align=center>🉑<td align=center>🉑<td align=center>🉑
+<tr><td><code>x86_64-linux-android</code><td align=center>🉑<td align=center>🉑<td align=center>🉑
 </table>
 
 Legend:
@@ -102,6 +105,30 @@ zig build -Dtarget=x86_64-macos \
 	"-Dsystem_framework_path=$macos_sdk_path/System/Library/Frameworks" \
 	"-Dlibrary_path=$macos_sdk_path/usr/lib"
 ```
+
+### Android
+
+Building for `aarch64/x86_64-linux-android` requires the [Android NDK](https://developer.android.com/ndk) to be installed on the host system. Pass the path to its root directory:
+
+```sh
+zig build -Dtarget=aarch64-linux-android "-Dandroid_ndk=$ANDROID_NDK_HOME"
+```
+
+The Android API level is the target's ABI version (Zig's default is 29), for example `-Dtarget=aarch64-linux-android.21` for API level 21, the minimum of SDL's own Android project. The C library and system libraries come from the NDK's sysroot for that level. Zig's default `x86_64` CPU lacks the SSE3 to SSE4.2 extensions that Android's `x86_64` ABI guarantees; pass `-Dcpu=x86_64_v2` to build SDL's code that uses them.
+
+An Android app is a shared library loaded by SDL's Java code. Your library needs the same NDK C library and library directory as SDL, which the package provides as named lazy paths, along with the Java sources your APK compiles:
+
+```zig
+const lib = b.addLibrary(.{ .linkage = .dynamic, .name = "main", .root_module = mod });
+lib.root_module.linkLibrary(sdl_dep.artifact("SDL3"));
+lib.setLibCFile(sdl_dep.namedLazyPath("android_libc_file"));
+lib.root_module.addLibraryPath(sdl_dep.namedLazyPath("android_lib_dir"));
+// sdl_dep.namedLazyPath("android_java"): the org.libsdl.app Java package
+```
+
+With SDL linked statically into `libmain.so`, override `getLibraries()` in your `SDLActivity` subclass to return only `"main"`. Packaging the APK (compiling the Java code, `d8`, `aapt2`, signing) is left to your build; see [SDL's Android README](https://wiki.libsdl.org/SDL3/README/android).
+
+32-bit `arm` and `x86` do not build with NDK r26, whose `android/hardware_buffer.h` has an enum value Zig's Clang rejects.
 
 ### Emscripten (web)
 
