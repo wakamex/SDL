@@ -68,9 +68,20 @@ class SDLInputConnection extends BaseInputConnection
         // Workaround to capture backspace key. Ref: http://stackoverflow.com/questions>/14560344/android-backspace-in-webview-baseinputconnection
         // and https://bugzilla.libsdl.org/show_bug.cgi?id=2265
         if (beforeLength > 0 && afterLength == 0) {
-            // backspace(s)
-            while (beforeLength-- > 0) {
+            // backspace(s): one for each character the keyboard deletes from the editable, which
+            // loses them too, so that what it later composes and corrects there matches what the
+            // app was sent; and one for each it reaches past the editable's start, into what the
+            // app had before typing began
+            final Editable content = getEditable();
+            int cursor = content != null ? Math.max(0, android.text.Selection.getSelectionStart(content)) : 0;
+            int held = Math.min(cursor, beforeLength);
+            int backspaces = (content != null ? Character.codePointCount(content, cursor - held, cursor) : 0) + (beforeLength - held);
+            while (backspaces-- > 0) {
                 nativeGenerateScancodeForUnichar('\b');
+            }
+            if (content != null) {
+                super.deleteSurroundingText(held, 0);
+                mCommittedText = content.toString();
             }
             return true;
        }
