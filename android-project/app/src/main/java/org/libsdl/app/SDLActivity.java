@@ -1449,6 +1449,27 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
     /**
      * This method is called by SDL using JNI.
      */
+    /**
+     * Starts the keyboard's input again from `before`, the app's text before its cursor, after the
+     * app moved its cursor other than by typing (a tap, an arrow key) or went to another field: the
+     * keyboard then composes and corrects at the new place, in its context.
+     */
+    public static void restartTextInput(String before) {
+        SDLInputConnection.sBefore = before;
+        if (mSingleton == null) {
+            return;
+        }
+        mSingleton.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (mTextEdit != null) {
+                    InputMethodManager imm = (InputMethodManager) SDL.getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+                    imm.restartInput(mTextEdit);
+                }
+            }
+        });
+    }
+
     public static boolean showTextInput(int input_type, int x, int y, int w, int h) {
         // Transfer the task to the main thread as a Runnable
         return mSingleton.commandHandler.post(new ShowTextInputTask(input_type, x, y, w, h));

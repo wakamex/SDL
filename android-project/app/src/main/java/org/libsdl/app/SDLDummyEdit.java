@@ -55,6 +55,7 @@ public class SDLDummyEdit extends View implements View.OnKeyListener
     @Override
     public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
         ic = new SDLInputConnection(this, true);
+        outAttrs.initialSelStart = outAttrs.initialSelEnd = SDLInputConnection.sBefore.length();
 
         outAttrs.inputType = input_type;
         outAttrs.imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI |

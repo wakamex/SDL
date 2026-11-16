@@ -12,9 +12,19 @@ class SDLInputConnection extends BaseInputConnection
     protected EditText mEditText;
     protected String mCommittedText = "";
 
+    // The app's text before its cursor, which a new connection starts from, so that the keyboard
+    // composes and corrects in its context (SDLActivity.restartTextInput)
+    static volatile String sBefore = "";
+
     SDLInputConnection(View targetView, boolean fullEditor) {
         super(targetView, fullEditor);
         mEditText = new EditText(SDL.getContext());
+        String before = sBefore;
+        if (!before.isEmpty()) {
+            mEditText.setText(before);
+            mEditText.setSelection(before.length());
+            mCommittedText = before;
+        }
     }
 
     @Override
