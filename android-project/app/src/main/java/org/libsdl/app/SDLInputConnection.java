@@ -52,6 +52,36 @@ class SDLInputConnection extends BaseInputConnection
             }
         }
 
+        /*
+         * A keyboard may delete by sending Delete or Forward Delete as keys rather than through
+         * deleteSurroundingText. The key reaches the app, which deletes; the editable the keyboard reads
+         * must lose the same characters, or its later corrections, diffed in updateText against
+         * mCommittedText, delete too much.
+         */
+        int code = event.getKeyCode();
+        if (event.getAction() == KeyEvent.ACTION_DOWN && (code == KeyEvent.KEYCODE_DEL || code == KeyEvent.KEYCODE_FORWARD_DEL)) {
+            final Editable content = getEditable();
+            if (content != null) {
+                int start = android.text.Selection.getSelectionStart(content), end = android.text.Selection.getSelectionEnd(content);
+                if (start >= 0 && end >= 0) {
+                    int from = Math.min(start, end), to = Math.max(start, end);
+                    if (from == to) {  /* one character, as the app counts them: a grapheme */
+                        java.text.BreakIterator characters = java.text.BreakIterator.getCharacterInstance();
+                        characters.setText(content.toString());
+                        if (code == KeyEvent.KEYCODE_DEL && from > 0) {
+                            from = characters.preceding(from);
+                        } else if (code == KeyEvent.KEYCODE_FORWARD_DEL && to < content.length()) {
+                            to = characters.following(to);
+                        }
+                    }
+                    if (from >= 0 && to > from) {
+                        content.delete(from, to);
+                    }
+                    mCommittedText = content.toString();
+                }
+            }
+        }
+
         return super.sendKeyEvent(event);
     }
 
