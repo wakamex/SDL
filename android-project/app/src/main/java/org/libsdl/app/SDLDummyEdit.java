@@ -55,7 +55,9 @@ public class SDLDummyEdit extends View implements View.OnKeyListener
     @Override
     public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
         ic = new SDLInputConnection(this, true);
-        outAttrs.initialSelStart = outAttrs.initialSelEnd = SDLInputConnection.sBefore.length();
+        android.text.Editable text = ((SDLInputConnection) ic).getEditable();
+        outAttrs.initialSelStart = android.text.Selection.getSelectionStart(text);
+        outAttrs.initialSelEnd = android.text.Selection.getSelectionEnd(text);
 
         outAttrs.inputType = input_type;
         outAttrs.imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI |

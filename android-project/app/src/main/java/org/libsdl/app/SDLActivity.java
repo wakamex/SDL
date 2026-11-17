@@ -1470,6 +1470,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
      */
     public static void restartTextInput(String before) {
         SDLInputConnection.sBefore = before;
+        SDLInputConnection.sReset = true;
         if (mSingleton == null) {
             return;
         }

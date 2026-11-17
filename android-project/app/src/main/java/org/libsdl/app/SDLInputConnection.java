@@ -9,21 +9,28 @@ import android.widget.EditText;
 
 class SDLInputConnection extends BaseInputConnection
 {
-    protected EditText mEditText;
-    protected String mCommittedText = "";
+    // The text the keyboard reads and edits, and what of it the app has been sent: one for every
+    // connection, so that a keyboard still calling a connection made before the current one edits
+    // the same text.
+    protected static EditText mEditText;
+    protected static String mCommittedText = "";
 
-    // The app's text before its cursor, which a new connection starts from, so that the keyboard
-    // composes and corrects in its context (SDLActivity.restartTextInput)
+    // The app's text before its cursor, which the next connection starts from when sReset is set, so
+    // that the keyboard composes and corrects in its context (SDLActivity.restartTextInput)
     static volatile String sBefore = "";
+    static volatile boolean sReset;
 
     SDLInputConnection(View targetView, boolean fullEditor) {
         super(targetView, fullEditor);
-        mEditText = new EditText(SDL.getContext());
-        String before = sBefore;
-        if (!before.isEmpty()) {
+        if (mEditText == null) {
+            mEditText = new EditText(SDL.getContext());
+        }
+        if (sReset) {
+            String before = sBefore;
             mEditText.setText(before);
             mEditText.setSelection(before.length());
             mCommittedText = before;
+            sReset = false;
         }
     }
 
@@ -144,6 +151,44 @@ class SDLInputConnection extends BaseInputConnection
         boolean ok = super.setSelection(start, end);
         watch("setSelection " + start + " " + end + (ok ? "" : " refused"));
         return ok;
+    }
+
+    // Android 14's replaceText, with which a keyboard puts in a suggestion picked from its strip:
+    // BaseInputConnection edits the editable itself, so the app hears of it here.
+    @Override
+    public boolean replaceText(int start, int end, CharSequence text, int newCursorPosition, android.view.inputmethod.TextAttribute textAttribute) {
+        if (!super.replaceText(start, end, text, newCursorPosition, textAttribute)) {
+            watch("replaceText " + start + " " + end + " \"" + text + "\" " + newCursorPosition + " refused");
+            return false;
+        }
+        updateText();
+        watch("replaceText " + start + " " + end + " \"" + text + "\" " + newCursorPosition);
+        return true;
+    }
+
+    // The same deletion counted in code points, which BaseInputConnection would also apply to the
+    // editable itself: it goes through deleteSurroundingText, counted in UTF-16 units.
+    @Override
+    public boolean deleteSurroundingTextInCodePoints(int beforeLength, int afterLength) {
+        final Editable content = getEditable();
+        if (content == null) {
+            return deleteSurroundingText(beforeLength, afterLength);
+        }
+        int cursor = Math.max(0, android.text.Selection.getSelectionStart(content)), before = 0, after = 0;
+        for (int i = cursor, n = 0; i > 0 && n < beforeLength; n++) {
+            int step = Character.charCount(Character.codePointBefore(content, i));
+            i -= step;
+            before += step;
+        }
+        if (before < beforeLength) {
+            before += beforeLength - before;  /* (past the editable's start: the app's text before typing began) */
+        }
+        for (int i = cursor, n = 0; i < content.length() && n < afterLength; n++) {
+            int step = Character.charCount(Character.codePointAt(content, i));
+            i += step;
+            after += step;
+        }
+        return deleteSurroundingText(before, after);
     }
 
     @Override
