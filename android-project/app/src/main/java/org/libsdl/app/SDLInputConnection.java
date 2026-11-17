@@ -82,25 +82,68 @@ class SDLInputConnection extends BaseInputConnection
             }
         }
 
-        return super.sendKeyEvent(event);
+        boolean sent = super.sendKeyEvent(event);
+        watch("sendKeyEvent " + (event.getAction() == KeyEvent.ACTION_DOWN ? "down " : "up ") + KeyEvent.keyCodeToString(code));
+        return sent;
+    }
+
+    // Tells SDLActivity's keyboard watcher, if one is set, of a call from the keyboard and of the
+    // editable after it: its text, selection and composing span, and what the app was last sent.
+    protected void watch(String call) {
+        SDLActivity.KeyboardWatcher watcher = SDLActivity.sKeyboardWatcher;
+        if (watcher == null) {
+            return;
+        }
+        final Editable content = getEditable();
+        if (content == null) {
+            watcher.call(call);
+            return;
+        }
+        watcher.call(call + " -> \"" + content + "\" selection " + android.text.Selection.getSelectionStart(content) + ".." + android.text.Selection.getSelectionEnd(content) +
+                     " composing " + getComposingSpanStart(content) + ".." + getComposingSpanEnd(content) + " committed \"" + mCommittedText + "\"");
     }
 
     @Override
     public boolean commitText(CharSequence text, int newCursorPosition) {
         if (!super.commitText(text, newCursorPosition)) {
+            watch("commitText \"" + text + "\" " + newCursorPosition + " refused");
             return false;
         }
         updateText();
+        watch("commitText \"" + text + "\" " + newCursorPosition);
         return true;
     }
 
     @Override
     public boolean setComposingText(CharSequence text, int newCursorPosition) {
         if (!super.setComposingText(text, newCursorPosition)) {
+            watch("setComposingText \"" + text + "\" " + newCursorPosition + " refused");
             return false;
         }
         updateText();
+        watch("setComposingText \"" + text + "\" " + newCursorPosition);
         return true;
+    }
+
+    @Override
+    public boolean setComposingRegion(int start, int end) {
+        boolean ok = super.setComposingRegion(start, end);
+        watch("setComposingRegion " + start + " " + end + (ok ? "" : " refused"));
+        return ok;
+    }
+
+    @Override
+    public boolean finishComposingText() {
+        boolean ok = super.finishComposingText();
+        watch("finishComposingText" + (ok ? "" : " refused"));
+        return ok;
+    }
+
+    @Override
+    public boolean setSelection(int start, int end) {
+        boolean ok = super.setSelection(start, end);
+        watch("setSelection " + start + " " + end + (ok ? "" : " refused"));
+        return ok;
     }
 
     @Override
@@ -123,13 +166,16 @@ class SDLInputConnection extends BaseInputConnection
                 super.deleteSurroundingText(held, 0);
                 mCommittedText = content.toString();
             }
+            watch("deleteSurroundingText " + beforeLength + " " + afterLength);
             return true;
        }
 
         if (!super.deleteSurroundingText(beforeLength, afterLength)) {
+            watch("deleteSurroundingText " + beforeLength + " " + afterLength + " refused");
             return false;
         }
         updateText();
+        watch("deleteSurroundingText " + beforeLength + " " + afterLength);
         return true;
     }
 

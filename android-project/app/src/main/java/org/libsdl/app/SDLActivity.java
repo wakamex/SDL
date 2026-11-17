@@ -1450,6 +1450,20 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
      * This method is called by SDL using JNI.
      */
     /**
+     * Hears each call the on-screen keyboard makes on SDL's input connection, with the connection's
+     * text after it, for an app that logs what the keyboard did.
+     */
+    public interface KeyboardWatcher {
+        void call(String line);
+    }
+
+    static volatile KeyboardWatcher sKeyboardWatcher;
+
+    public static void setKeyboardWatcher(KeyboardWatcher watcher) {
+        sKeyboardWatcher = watcher;
+    }
+
+    /**
      * Starts the keyboard's input again from `before`, the app's text before its cursor, after the
      * app moved its cursor other than by typing (a tap, an arrow key) or went to another field: the
      * keyboard then composes and corrects at the new place, in its context.
