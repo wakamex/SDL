@@ -41,6 +41,7 @@ class SDLInputConnection extends BaseInputConnection
 
     @Override
     public boolean sendKeyEvent(KeyEvent event) {
+        long at = System.nanoTime();
         /*
          * This used to handle the keycodes from soft keyboard (and IME-translated input from hardkeyboard)
          * However, as of Ice Cream Sandwich and later, almost all soft keyboard doesn't generate key presses
@@ -90,13 +91,14 @@ class SDLInputConnection extends BaseInputConnection
         }
 
         boolean sent = super.sendKeyEvent(event);
-        watch("sendKeyEvent " + (event.getAction() == KeyEvent.ACTION_DOWN ? "down " : "up ") + KeyEvent.keyCodeToString(code));
+        watch(at, "sendKeyEvent " + (event.getAction() == KeyEvent.ACTION_DOWN ? "down " : "up ") + KeyEvent.keyCodeToString(code));
         return sent;
     }
 
     // Tells SDLActivity's keyboard watcher, if one is set, of a call from the keyboard and of the
     // editable after it: its text, selection and composing span, and what the app was last sent.
-    protected void watch(String call) {
+    protected void watch(long at, String call) {
+        call = "@" + at + " " + call;  /* (System.nanoTime() when the call came in: the monotonic clock, as SDL's ticks) */
         SDLActivity.KeyboardWatcher watcher = SDLActivity.sKeyboardWatcher;
         if (watcher == null) {
             return;
@@ -112,44 +114,49 @@ class SDLInputConnection extends BaseInputConnection
 
     @Override
     public boolean commitText(CharSequence text, int newCursorPosition) {
+        long at = System.nanoTime();
         if (!super.commitText(text, newCursorPosition)) {
-            watch("commitText \"" + text + "\" " + newCursorPosition + " refused");
+            watch(at, "commitText \"" + text + "\" " + newCursorPosition + " refused");
             return false;
         }
         updateText();
-        watch("commitText \"" + text + "\" " + newCursorPosition);
+        watch(at, "commitText \"" + text + "\" " + newCursorPosition);
         return true;
     }
 
     @Override
     public boolean setComposingText(CharSequence text, int newCursorPosition) {
+        long at = System.nanoTime();
         if (!super.setComposingText(text, newCursorPosition)) {
-            watch("setComposingText \"" + text + "\" " + newCursorPosition + " refused");
+            watch(at, "setComposingText \"" + text + "\" " + newCursorPosition + " refused");
             return false;
         }
         updateText();
-        watch("setComposingText \"" + text + "\" " + newCursorPosition);
+        watch(at, "setComposingText \"" + text + "\" " + newCursorPosition);
         return true;
     }
 
     @Override
     public boolean setComposingRegion(int start, int end) {
+        long at = System.nanoTime();
         boolean ok = super.setComposingRegion(start, end);
-        watch("setComposingRegion " + start + " " + end + (ok ? "" : " refused"));
+        watch(at, "setComposingRegion " + start + " " + end + (ok ? "" : " refused"));
         return ok;
     }
 
     @Override
     public boolean finishComposingText() {
+        long at = System.nanoTime();
         boolean ok = super.finishComposingText();
-        watch("finishComposingText" + (ok ? "" : " refused"));
+        watch(at, "finishComposingText" + (ok ? "" : " refused"));
         return ok;
     }
 
     @Override
     public boolean setSelection(int start, int end) {
+        long at = System.nanoTime();
         boolean ok = super.setSelection(start, end);
-        watch("setSelection " + start + " " + end + (ok ? "" : " refused"));
+        watch(at, "setSelection " + start + " " + end + (ok ? "" : " refused"));
         return ok;
     }
 
@@ -157,12 +164,13 @@ class SDLInputConnection extends BaseInputConnection
     // BaseInputConnection edits the editable itself, so the app hears of it here.
     @Override
     public boolean replaceText(int start, int end, CharSequence text, int newCursorPosition, android.view.inputmethod.TextAttribute textAttribute) {
+        long at = System.nanoTime();
         if (!super.replaceText(start, end, text, newCursorPosition, textAttribute)) {
-            watch("replaceText " + start + " " + end + " \"" + text + "\" " + newCursorPosition + " refused");
+            watch(at, "replaceText " + start + " " + end + " \"" + text + "\" " + newCursorPosition + " refused");
             return false;
         }
         updateText();
-        watch("replaceText " + start + " " + end + " \"" + text + "\" " + newCursorPosition);
+        watch(at, "replaceText " + start + " " + end + " \"" + text + "\" " + newCursorPosition);
         return true;
     }
 
@@ -193,6 +201,7 @@ class SDLInputConnection extends BaseInputConnection
 
     @Override
     public boolean deleteSurroundingText(int beforeLength, int afterLength) {
+        long at = System.nanoTime();
         // Workaround to capture backspace key. Ref: http://stackoverflow.com/questions>/14560344/android-backspace-in-webview-baseinputconnection
         // and https://bugzilla.libsdl.org/show_bug.cgi?id=2265
         if (beforeLength > 0 && afterLength == 0) {
@@ -211,16 +220,16 @@ class SDLInputConnection extends BaseInputConnection
                 super.deleteSurroundingText(held, 0);
                 mCommittedText = content.toString();
             }
-            watch("deleteSurroundingText " + beforeLength + " " + afterLength);
+            watch(at, "deleteSurroundingText " + beforeLength + " " + afterLength);
             return true;
        }
 
         if (!super.deleteSurroundingText(beforeLength, afterLength)) {
-            watch("deleteSurroundingText " + beforeLength + " " + afterLength + " refused");
+            watch(at, "deleteSurroundingText " + beforeLength + " " + afterLength + " refused");
             return false;
         }
         updateText();
-        watch("deleteSurroundingText " + beforeLength + " " + afterLength);
+        watch(at, "deleteSurroundingText " + beforeLength + " " + afterLength);
         return true;
     }
 
