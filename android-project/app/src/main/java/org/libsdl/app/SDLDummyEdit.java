@@ -1,6 +1,7 @@
 package org.libsdl.app;
 
 import android.content.*;
+import android.os.Build;
 import android.text.InputType;
 import android.view.*;
 import android.view.inputmethod.EditorInfo;
@@ -62,6 +63,10 @@ public class SDLDummyEdit extends View implements View.OnKeyListener
         outAttrs.inputType = input_type;
         outAttrs.imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI |
                               EditorInfo.IME_FLAG_NO_FULLSCREEN /* API 11 */;
+        // (images the keyboard may put in, with SDL_HINT_ANDROID_TEXT_INPUT_IMAGES: SDLInputConnection.commitContent)
+        if (Build.VERSION.SDK_INT >= 25 && SDLActivity.nativeGetHintBoolean("SDL_ANDROID_TEXT_INPUT_IMAGES", false)) {
+            outAttrs.contentMimeTypes = new String[] { "image/*" };
+        }
 
         return ic;
     }

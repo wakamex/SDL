@@ -168,6 +168,21 @@ extern "C" {
 #define SDL_HINT_ANDROID_TRAP_BACK_BUTTON "SDL_ANDROID_TRAP_BACK_BUTTON"
 
 /**
+ * A variable to control whether the on-screen keyboard can put images into
+ * text input on Android.
+ *
+ * The variable can be set to the following values:
+ *
+ * - "0": The keyboard offers no images. (default)
+ * - "1": The keyboard may put in images, such as a picture from its
+ *   clipboard or a sticker. Each is saved to a file in the app's cache
+ *   folder and arrives as an SDL_EVENT_DROP_FILE with that file's path.
+ *
+ * This hint is read whenever text input starts.
+ */
+#define SDL_HINT_ANDROID_TEXT_INPUT_IMAGES "SDL_ANDROID_TEXT_INPUT_IMAGES"
+
+/**
  * A variable setting the app ID string.
  *
  * This string is used by desktop compositors to identify and group windows

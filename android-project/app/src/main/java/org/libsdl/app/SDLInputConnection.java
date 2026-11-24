@@ -280,6 +280,43 @@ class SDLInputConnection extends BaseInputConnection
         mCommittedText = text;
     }
 
+    // An image the keyboard puts in (with SDL_HINT_ANDROID_TEXT_INPUT_IMAGES), such as a picture from
+    // its clipboard: copied to a file in the app's cache folder, which reaches the app as a dropped file.
+    @Override
+    public boolean commitContent(android.view.inputmethod.InputContentInfo info, int flags, android.os.Bundle opts) {
+        long at = System.nanoTime();
+        android.content.ClipDescription description = info.getDescription();
+        String type = description.getMimeTypeCount() > 0 ? description.getMimeType(0) : "";
+        String ending = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(type);
+        java.io.File folder = new java.io.File(SDL.getContext().getCacheDir(), "keyboard");
+        java.io.File file = new java.io.File(folder, "image-" + System.currentTimeMillis() + (ending != null ? "." + ending : ""));
+        boolean asked = (flags & android.view.inputmethod.InputConnection.INPUT_CONTENT_GRANT_READ_URI_PERMISSION) != 0;
+        try {
+            if (asked) {
+                info.requestPermission();
+            }
+            folder.mkdirs();
+            try (java.io.InputStream in = SDL.getContext().getContentResolver().openInputStream(info.getContentUri());
+                 java.io.OutputStream out = new java.io.FileOutputStream(file)) {
+                byte[] buffer = new byte[65536];
+                for (int n; (n = in.read(buffer)) > 0; ) {
+                    out.write(buffer, 0, n);
+                }
+            }
+        } catch (Exception e) {
+            file.delete();
+            watch(at, "commitContent " + type + " failed: " + e);
+            return false;
+        } finally {
+            if (asked) {
+                info.releasePermission();
+            }
+        }
+        SDLActivity.onNativeDropFile(file.getPath());
+        watch(at, "commitContent " + type + " -> " + file.getPath());
+        return true;
+    }
+
     public static native void nativeCommitText(String text, int newCursorPosition);
 
     public static native void nativeGenerateScancodeForUnichar(char c);
