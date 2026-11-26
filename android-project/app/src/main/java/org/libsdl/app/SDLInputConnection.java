@@ -260,16 +260,21 @@ class SDLInputConnection extends BaseInputConnection
 
         if (matchLength < text.length()) {
             String pendingText = text.subSequence(matchLength, text.length()).toString();
-            if (!SDLActivity.dispatchingKeyEvent()) {
+            // (a key for each character, but none for a long piece such as a paste: two events a character
+            // would fill SDL's event queue, and the text, sent after them, would be dropped)
+            if (!SDLActivity.dispatchingKeyEvent() && pendingText.length() <= 64) {
                 for (offset = 0; offset < pendingText.length(); ) {
                     int codePoint = pendingText.codePointAt(offset);
-                    if (codePoint == '\n') {
+                    /* A line break alone is the Return key; within a longer piece, such as a paste, it is
+                       text, and a Return key for it would add a second one, or send what is typed */
+                    boolean alone = pendingText.length() == 1;
+                    if (codePoint == '\n' && alone) {
                         if (SDLActivity.onNativeSoftReturnKey()) {
                             return;
                         }
                     }
                     /* Higher code points don't generate simulated scancodes */
-                    if (codePoint > 0 && codePoint < 128) {
+                    if (codePoint > 0 && codePoint < 128 && (codePoint != '\n' || alone)) {
                         nativeGenerateScancodeForUnichar((char)codePoint);
                     }
                     offset += Character.charCount(codePoint);
